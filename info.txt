@@ -1,0 +1,73 @@
+- 비동기 네트워크 통신 관련 파일
+- api폴더 
+- youtube.js => youtube api 로직 관리
+
+- 중요한 로직들의 반복적인 노출을 개선하기 위해 fake파일을 생성후 class를 만들어서 관리하였다
+
+- fake파일
+import axios from 'axios';
+
+export default class FakeYoutube {
+  constructor() {
+
+  }
+
+  async search(keyword) {
+    return keyword ? this.#searchByKeyword(keyword) : this.#mostPopular();
+  };
+
+  async #searchByKeyword() {
+    return axios
+      .get('/videos/search.json')
+      .then((res) => res.data.items)
+      .then((items) => items.map(item => ({ ...item, id: item.id.videoId })) )
+  }
+
+  async #mostPopular() {
+    return axios
+      .get('/videos/popular.json')
+      .then((res) => res.data.items)
+  }
+}
+
+
+
+- 실제 사용
+const {isLoading, error, data: videos} = useQuery({
+  queryKey: ['videos', keyword],
+  // queryFn: ()=> search(keyword)
+  queryFn: () => {
+    const youtube = new FakeYoutube();
+    return youtube.search(keyword);
+  }
+})
+
+
+
+- 중요한 데이터들 관리 ex) api key
+1) 최상위 폴더에 .env 파일 생성
+2) .gitignore 파일에서 #misc 부분 밑에 .env 추가
+
+
+
+- context 폴더 생성
+- 실제 사용
+import { createContext, useContext } from "react";
+import Youtube from "../api/youtube";
+import FakeYoutube from "../api/fakeYoutube";
+
+export const YoutubeApiContext = createContext();
+
+const youtube = new Youtube();
+
+export function YoutubeApiProvider({ children }) {
+  return (
+    <YoutubeApiContext.Provider value={{ youtube }}>
+      {children}
+    </YoutubeApiContext.Provider>
+  )
+}
+
+export function useYoutubeApi() {
+  return useContext(YoutubeApiContext);
+}
